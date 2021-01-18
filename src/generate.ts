@@ -21,6 +21,7 @@ import {
 } from './codegen';
 import { generateSmartImportNode } from './generators/smart-import-node';
 import { generateImportNode } from './generators/import-node';
+import { sortProperties } from './utils/sortProperties';
 
 const { factory } = ts;
 
@@ -54,7 +55,16 @@ export async function generateApi(
 
   const apiGen = new ApiGenerator(v3Doc, {});
 
-  const operationDefinitions = getOperationDefinitions(v3Doc);
+  const operationDefinitions = getOperationDefinitions(v3Doc).sort((a, b) => {
+    if (a.path < b.path) {
+      return -1;
+    }
+    if (a.path > b.path) {
+      return 1;
+    }
+
+    return 0;
+  });
 
   const resultFile = ts.createSourceFile(
     'someFileName.ts',
@@ -148,8 +158,17 @@ export async function generateApi(
             true
           ),
         }),
-        ...Object.values(interfaces),
-        ...apiGen['aliases'],
+        ...Object.values(sortProperties(interfaces)),
+        ...apiGen['aliases'].sort((a, b) => {
+          if (a.name < b.name) {
+            return -1;
+          }
+          if (a.name > b.name) {
+            return 1;
+          }
+
+          return 0;
+        }),
         ...(hooks ? [generateReactHooks({ exportName, operationDefinitions })] : []),
       ],
       factory.createToken(ts.SyntaxKind.EndOfFileToken),
